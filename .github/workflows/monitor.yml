@@ -2,7 +2,7 @@ name: Monitor Foster Opportunities
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -43,6 +43,8 @@ jobs:
           START_HOUR: ${{ vars.START_HOUR }}
           END_HOUR: ${{ vars.END_HOUR }}
           OPERATING_DAYS: ${{ vars.OPERATING_DAYS }}
+          DETECTION_RULES: ${{ vars.DETECTION_RULES }}
+          DEBUG_LLM: ${{ vars.DEBUG_LLM }}
         run: |
           ARGS=""
           if [ "${{ inputs.force }}" == "true" ]; then ARGS="$ARGS --force"; fi

@@ -13,33 +13,42 @@ from google import genai
 from google.genai import types
 
 # Configuration
-# Load config from environment variables or use defaults
+# Load config from environment variables. Fail if missing.
 try:
-    TARGET_URLS = json.loads(os.environ.get("TARGET_URLS", "[]"))
+    TARGET_URLS = json.loads(os.environ["TARGET_URLS"])
+except KeyError:
+    print("Error: TARGET_URLS environment variable is missing.")
+    sys.exit(1)
 except json.JSONDecodeError:
     # Fallback to comma-separated if JSON fails
     TARGET_URLS = [u.strip() for u in os.environ.get("TARGET_URLS", "").split(",") if u.strip()]
-
-if not TARGET_URLS:
-    TARGET_URLS = [
-        "https://sites.google.com/view/wellington-centre-animals-avai/canines",
-        "https://sites.google.com/view/wellington-centre-animals-avai/felines"
-    ]
+    if not TARGET_URLS:
+        print("Error: TARGET_URLS is invalid or empty.")
+        sys.exit(1)
 
 HISTORY_FILE = "history.txt"
 TIMEZONE = "Pacific/Auckland"
 
 # Operating Window Config
 try:
-    START_HOUR = int(os.environ.get("START_HOUR", 8))
-    END_HOUR = int(os.environ.get("END_HOUR", 20))
-    # Days: 0=Monday, 6=Sunday. Default to "0,1,2,3,4,5,6" (all days)
-    OPERATING_DAYS = [int(d) for d in os.environ.get("OPERATING_DAYS", "0,1,2,3,4,5,6").split(",") if d.strip().isdigit()]
+    START_HOUR = int(os.environ["START_HOUR"])
+    END_HOUR = int(os.environ["END_HOUR"])
+    # Days: 0=Monday, 6=Sunday.
+    OPERATING_DAYS = [int(d) for d in os.environ["OPERATING_DAYS"].split(",") if d.strip().isdigit()]
+except KeyError as e:
+    print(f"Error: Missing required environment variable: {e}")
+    sys.exit(1)
 except ValueError:
-    print("Error parsing time/day config. Using defaults.")
-    START_HOUR = 8
-    END_HOUR = 20
-    OPERATING_DAYS = [0, 1, 2, 3, 4, 5, 6]
+    print("Error: Invalid format for time/day config.")
+    sys.exit(1)
+
+# Detection Config
+# Natural language rules for detection.
+# e.g. "Include ONLY items where the button text contains 'Ask to foster' or 'Available'."
+DETECTION_RULES = os.environ.get("DETECTION_RULES", "Include ONLY items where the button text contains 'Ask' (case-insensitive).")
+
+# Debug Config
+DEBUG_LLM = os.environ.get("DEBUG_LLM", "false").lower() == "true"
 
 def check_operating_hours():
     """Exit if outside operating window (Time or Day)."""
@@ -106,11 +115,17 @@ def send_notification(title, content):
 def analyze_screenshot(client, image_bytes):
     """Send screenshot to Gemini for analysis."""
     prompt = (
-        "Identify all animal listing blocks. For each block, extract: "
-        "1. The primary identifier text below the image (e.g., 'AID 649991 - Hinau' or '3x Puppies'). "
-        "2. The exact button text at the bottom (e.g., 'Pending', 'Ask to foster me'). "
+        f"Identify animal listing blocks in the image.\n"
+        f"CRITICAL FILTERING RULES:\n"
+        f"{DETECTION_RULES}\n\n"
+        "For each matching block, extract:\n"
+        "1. The primary identifier text below the image (e.g., 'AID 649991 - Hinau' or '3x Puppies').\n"
+        "2. The exact button text at the bottom.\n"
         "Return strictly a JSON list: [{'id': '...', 'status': '...'}]"
     )
+
+    if DEBUG_LLM:
+        print(f"\n[DEBUG] LLM Prompt:\n{prompt}\n")
 
     try:
         # Create the image part
@@ -136,6 +151,9 @@ def analyze_screenshot(client, image_bytes):
             )
         )
         
+        if DEBUG_LLM:
+            print(f"\n[DEBUG] LLM Response:\n{response.text}\n")
+
         return json.loads(response.text)
     except Exception as e:
         print(f"Gemini analysis failed: {e}")
@@ -191,9 +209,7 @@ def main():
                     raw_id = item.get('id', '').strip()
                     status = item.get('status', '').strip()
                     
-                    # Filter: Status must contain "Ask" (case-insensitive)
-                    if "ask" not in status.lower():
-                        continue
+                    # Filter logic is now handled by LLM prompt
                         
                     unique_key = normalize_key(raw_id)
                     

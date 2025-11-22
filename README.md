@@ -4,7 +4,7 @@ A robust, automated monitoring system running on GitHub Actions to detect "Foste
 
 ## Features
 
-- 🕒 **Smart Scheduling**: Runs every 15 minutes within specified operating hours (default 08:00 - 20:00 NZT).
+- 🕒 **Smart Scheduling**: Runs every 30 minutes within specified operating hours (default 08:00 - 20:00 NZT).
 - 👁️ **AI Vision Analysis**: Uses Gemini 3 Pro to "see" the page, identifying animals and their status ("Pending" vs "Ask to foster").
 - 🛡️ **Deduplication**: Maintains a `history.txt` to prevent repeated alerts for the same animal.
 - 🔔 **Push Notifications**: Sends real-time alerts via PushPlus to WeChat.
@@ -38,6 +38,8 @@ You can customize the behavior by adding these variables. If not set, defaults w
 | `START_HOUR` | `8` | Start hour of the day (0-23) in NZT. |
 | `END_HOUR` | `20` | End hour of the day (0-23) in NZT. |
 | `OPERATING_DAYS`| `0,1,2,3,4,5,6` | Days of the week to run (0=Monday, 6=Sunday). Example: `0,1,2,3,4` for weekdays only. |
+| `DETECTION_RULES` | *(Default Rule)* | Natural language rules for LLM filtering. Example: `Find animals where the button says 'Ask to foster' or 'Available'.` |
+| `DEBUG_LLM` | `false` | Set to `true` to print the full LLM prompt and response to the logs for debugging. |
 
 ## Manual Testing
 
