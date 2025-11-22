@@ -1,0 +1,198 @@
+import os
+import sys
+import json
+import re
+import time
+import base64
+import argparse
+from datetime import datetime
+import pytz
+import requests
+from playwright.sync_api import sync_playwright
+from google import genai
+from google.genai import types
+
+# Configuration
+TARGET_URLS = [
+    "https://sites.google.com/view/wellington-centre-animals-avai/canines",
+    "https://sites.google.com/view/wellington-centre-animals-avai/felines"
+]
+HISTORY_FILE = "history.txt"
+TIMEZONE = "Pacific/Auckland"
+START_HOUR = 8
+END_HOUR = 20
+
+def check_operating_hours():
+    """Exit if outside operating window (08:00 - 20:00 NZT)."""
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.now(tz)
+    if not (START_HOUR <= now.hour < END_HOUR):
+        print(f"Current time {now.strftime('%H:%M')} is outside operating hours ({START_HOUR}-{END_HOUR}). Exiting.")
+        sys.exit(0)
+    print(f"Operating within window: {now.strftime('%H:%M')}")
+
+def load_history():
+    """Load history from file."""
+    if not os.path.exists(HISTORY_FILE):
+        return set()
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        return set(line.strip() for line in f if line.strip())
+
+def save_history(new_key):
+    """Append new key to history file."""
+    with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{new_key}\n")
+
+def normalize_key(id_text):
+    """
+    Generate a stable unique key.
+    1. If digits > 3 chars exist (e.g. '649991'), use them.
+    2. Else, normalize string (lowercase, alphanumeric only).
+    """
+    # Look for sequence of 4 or more digits
+    digit_match = re.search(r'\d{4,}', id_text)
+    if digit_match:
+        return digit_match.group(0)
+    
+    # Fallback: normalize string
+    return re.sub(r'[^a-z0-9]', '', id_text.lower())
+
+def send_notification(title, content):
+    """Send notification via PushPlus."""
+    token = os.environ.get("PUSHPLUS_TOKEN")
+    if not token:
+        print("Warning: PUSHPLUS_TOKEN not set. Skipping notification.")
+        return
+
+    url = "http://www.pushplus.plus/send"
+    payload = {
+        "token": token,
+        "title": title,
+        "content": content
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        print(f"Notification sent: {title}")
+    except Exception as e:
+        print(f"Failed to send notification: {e}")
+
+def analyze_screenshot(client, image_bytes):
+    """Send screenshot to Gemini for analysis."""
+    prompt = (
+        "Identify all animal listing blocks. For each block, extract: "
+        "1. The primary identifier text below the image (e.g., 'AID 649991 - Hinau' or '3x Puppies'). "
+        "2. The exact button text at the bottom (e.g., 'Pending', 'Ask to foster me'). "
+        "Return strictly a JSON list: [{'id': '...', 'status': '...'}]"
+    )
+
+    try:
+        # Create the image part
+        image_part = types.Part.from_bytes(image_bytes, mime_type="image/png")
+        
+        # Note: The user requested media_resolution={"level": "media_resolution_high"}.
+        # In the v1alpha SDK, this is often handled by the model's default capability or specific config.
+        # We pass the image part directly.
+        
+        response = client.models.generate_content(
+            model="gemini-3-pro-preview",
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text=prompt),
+                        image_part
+                    ]
+                )
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"Gemini analysis failed: {e}")
+        return []
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--force", action="store_true", help="Ignore time window restrictions")
+    parser.add_argument("--test-push", action="store_true", help="Send a test notification and exit")
+    args = parser.parse_args()
+
+    if args.test_push:
+        print("Sending test notification...")
+        send_notification("Test Notification", "This is a test message from the Foster Crawler to verify PushPlus integration.")
+        return
+
+    if not args.force:
+        check_operating_hours()
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("Error: GEMINI_API_KEY not set.")
+        sys.exit(1)
+
+    # Initialize Gemini Client (v1alpha)
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(api_version='v1alpha')
+    )
+
+    history = load_history()
+    new_findings = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+        
+        for url in TARGET_URLS:
+            print(f"Checking {url}...")
+            page = context.new_page()
+            try:
+                page.goto(url)
+                # Critical wait for images to load
+                page.wait_for_timeout(8000)
+                
+                screenshot = page.screenshot(full_page=True)
+                print("Screenshot taken. Analyzing with Gemini...")
+                
+                items = analyze_screenshot(client, screenshot)
+                print(f"Found {len(items)} items.")
+                
+                for item in items:
+                    raw_id = item.get('id', '').strip()
+                    status = item.get('status', '').strip()
+                    
+                    # Filter: Status must contain "Ask" (case-insensitive)
+                    if "ask" not in status.lower():
+                        continue
+                        
+                    unique_key = normalize_key(raw_id)
+                    
+                    if unique_key and unique_key not in history:
+                        print(f"New Opportunity: {raw_id} (Key: {unique_key})")
+                        new_findings.append(f"{raw_id} [{status}]")
+                        save_history(unique_key)
+                        history.add(unique_key)
+                        
+                        # Send individual notification or batch later? 
+                        # Requirement says "If new: Send Notification -> Save unique_key".
+                        # We'll send immediately to be safe.
+                        send_notification(
+                            title="New Foster Opportunity!",
+                            content=f"Found: {raw_id}<br>Status: {status}<br>Link: {url}"
+                        )
+                    else:
+                        print(f"Skipping (Known or Invalid): {raw_id}")
+                        
+            except Exception as e:
+                print(f"Error processing {url}: {e}")
+            finally:
+                page.close()
+        
+        browser.close()
+
+if __name__ == "__main__":
+    main()
