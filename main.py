@@ -128,12 +128,15 @@ def analyze_screenshot(client, image_bytes):
         print(f"\n[DEBUG] LLM Prompt:\n{prompt}\n")
 
     try:
-        # Create the image part
-        image_part = types.Part.from_bytes(image_bytes, mime_type="image/png")
-        
-        # Note: The user requested media_resolution={"level": "media_resolution_high"}.
-        # In the v1alpha SDK, this is often handled by the model's default capability or specific config.
-        # We pass the image part directly.
+        # Create the image part using types.Part with inline_data
+        # This matches the latest v1alpha SDK usage for high resolution
+        image_part = types.Part(
+            inline_data=types.Blob(
+                mime_type="image/png",
+                data=image_bytes
+            ),
+            media_resolution={"level": "media_resolution_high"}
+        )
         
         response = client.models.generate_content(
             model="gemini-3-pro-preview",
