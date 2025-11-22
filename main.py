@@ -13,23 +13,49 @@ from google import genai
 from google.genai import types
 
 # Configuration
-TARGET_URLS = [
-    "https://sites.google.com/view/wellington-centre-animals-avai/canines",
-    "https://sites.google.com/view/wellington-centre-animals-avai/felines"
-]
+# Load config from environment variables or use defaults
+try:
+    TARGET_URLS = json.loads(os.environ.get("TARGET_URLS", "[]"))
+except json.JSONDecodeError:
+    # Fallback to comma-separated if JSON fails
+    TARGET_URLS = [u.strip() for u in os.environ.get("TARGET_URLS", "").split(",") if u.strip()]
+
+if not TARGET_URLS:
+    TARGET_URLS = [
+        "https://sites.google.com/view/wellington-centre-animals-avai/canines",
+        "https://sites.google.com/view/wellington-centre-animals-avai/felines"
+    ]
+
 HISTORY_FILE = "history.txt"
 TIMEZONE = "Pacific/Auckland"
-START_HOUR = 8
-END_HOUR = 20
+
+# Operating Window Config
+try:
+    START_HOUR = int(os.environ.get("START_HOUR", 8))
+    END_HOUR = int(os.environ.get("END_HOUR", 20))
+    # Days: 0=Monday, 6=Sunday. Default to "0,1,2,3,4,5,6" (all days)
+    OPERATING_DAYS = [int(d) for d in os.environ.get("OPERATING_DAYS", "0,1,2,3,4,5,6").split(",") if d.strip().isdigit()]
+except ValueError:
+    print("Error parsing time/day config. Using defaults.")
+    START_HOUR = 8
+    END_HOUR = 20
+    OPERATING_DAYS = [0, 1, 2, 3, 4, 5, 6]
 
 def check_operating_hours():
-    """Exit if outside operating window (08:00 - 20:00 NZT)."""
+    """Exit if outside operating window (Time or Day)."""
     tz = pytz.timezone(TIMEZONE)
     now = datetime.now(tz)
+    
+    # Check Day of Week
+    if now.weekday() not in OPERATING_DAYS:
+        print(f"Today is {now.strftime('%A')} (Day {now.weekday()}), which is not in operating days {OPERATING_DAYS}. Exiting.")
+        sys.exit(0)
+
+    # Check Time
     if not (START_HOUR <= now.hour < END_HOUR):
         print(f"Current time {now.strftime('%H:%M')} is outside operating hours ({START_HOUR}-{END_HOUR}). Exiting.")
         sys.exit(0)
-    print(f"Operating within window: {now.strftime('%H:%M')}")
+    print(f"Operating within window: {now.strftime('%H:%M')} on {now.strftime('%A')}")
 
 def load_history():
     """Load history from file."""

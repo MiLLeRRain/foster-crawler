@@ -38,6 +38,11 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          # Config Variables (Repository Variables)
+          TARGET_URLS: ${{ vars.TARGET_URLS }}
+          START_HOUR: ${{ vars.START_HOUR }}
+          END_HOUR: ${{ vars.END_HOUR }}
+          OPERATING_DAYS: ${{ vars.OPERATING_DAYS }}
         run: |
           ARGS=""
           if [ "${{ inputs.force }}" == "true" ]; then ARGS="$ARGS --force"; fi
