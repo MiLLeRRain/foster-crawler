@@ -45,6 +45,7 @@ jobs:
           OPERATING_DAYS: ${{ vars.OPERATING_DAYS }}
           DETECTION_RULES: ${{ vars.DETECTION_RULES }}
           DEBUG_LLM: ${{ vars.DEBUG_LLM }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
           ARGS=""
           if [ "${{ inputs.force }}" == "true" ]; then ARGS="$ARGS --force"; fi

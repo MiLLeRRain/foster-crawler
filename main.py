@@ -50,6 +50,10 @@ DETECTION_RULES = os.environ.get("DETECTION_RULES", "Include ONLY items where th
 # Debug Config
 DEBUG_LLM = os.environ.get("DEBUG_LLM", "false").lower() == "true"
 
+# Model Config
+PRIMARY_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+FALLBACK_MODEL = "gemini-2.5-pro"
+
 def check_operating_hours():
     """Exit if outside operating window (Time or Day)."""
     tz = pytz.timezone(TIMEZONE)
@@ -138,21 +142,29 @@ def analyze_screenshot(client, image_bytes):
             media_resolution={"level": "media_resolution_high"}
         )
         
-        response = client.models.generate_content(
-            model="gemini-3-pro-preview",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_text(text=prompt),
-                        image_part
-                    ]
+        def call_model(model_name):
+            return client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(text=prompt),
+                            image_part
+                        ]
+                    )
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
                 )
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
             )
-        )
+
+        try:
+            response = call_model(PRIMARY_MODEL)
+        except Exception as e:
+            print(f"Primary model '{PRIMARY_MODEL}' failed: {e}")
+            print(f"Falling back to '{FALLBACK_MODEL}'...")
+            response = call_model(FALLBACK_MODEL)
         
         if DEBUG_LLM:
             print(f"\n[DEBUG] LLM Response:\n{response.text}\n")
