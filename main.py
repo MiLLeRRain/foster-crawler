@@ -49,6 +49,7 @@ DETECTION_RULES = os.environ.get("DETECTION_RULES", "Include ONLY items where th
 
 # Debug Config
 DEBUG_LLM = os.environ.get("DEBUG_LLM", "false").lower() == "true"
+MASK_URLS = os.environ.get("MASK_URLS", "false").lower() == "true"
 
 # Model Config
 PRIMARY_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
@@ -206,8 +207,9 @@ def main():
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(viewport={'width': 1920, 'height': 1080})
         
-        for url in TARGET_URLS:
-            print(f"Checking {url}...")
+        for i, url in enumerate(TARGET_URLS):
+            log_url = f"Target [{i+1}]" if MASK_URLS else url
+            print(f"Checking {log_url}...")
             page = context.new_page()
             try:
                 page.goto(url)
@@ -245,7 +247,7 @@ def main():
                         print(f"Skipping (Known or Invalid): {raw_id}")
                         
             except Exception as e:
-                print(f"Error processing {url}: {e}")
+                print(f"Error processing {log_url}: {e}")
             finally:
                 page.close()
         

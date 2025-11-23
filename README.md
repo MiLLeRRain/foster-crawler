@@ -40,6 +40,7 @@ You can customize the behavior by adding these variables. If not set, defaults w
 | `OPERATING_DAYS`| `0,1,2,3,4,5,6` | Days of the week to run (0=Monday, 6=Sunday). Example: `0,1,2,3,4` for weekdays only. |
 | `DETECTION_RULES` | *(Default Rule)* | Natural language rules for LLM filtering. Example: `Include ONLY items where the button text contains 'Ask' or 'Available'.` |
 | `DEBUG_LLM` | `false` | Set to `true` to print the full LLM prompt and response to the logs for debugging. |
+| `MASK_URLS` | `false` | Set to `true` to hide URLs in the logs (e.g., "Checking Target [1]..."). |
 | `GEMINI_MODEL` | `gemini-3-pro-preview` | The primary Gemini model to use. Falls back to `gemini-2.5-pro` if it fails. |
 
 ## Manual Testing

@@ -45,6 +45,7 @@ jobs:
           OPERATING_DAYS: ${{ vars.OPERATING_DAYS }}
           DETECTION_RULES: ${{ vars.DETECTION_RULES }}
           DEBUG_LLM: ${{ vars.DEBUG_LLM }}
+          MASK_URLS: ${{ vars.MASK_URLS }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
           ARGS=""
