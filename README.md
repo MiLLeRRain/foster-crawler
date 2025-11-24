@@ -27,6 +27,7 @@ Add the following secrets:
 | :--- | :--- | :--- |
 | `GEMINI_API_KEY` | `AIzaSy...` | Your Google Gemini API Key. |
 | `PUSHPLUS_TOKEN` | `abc123...` | Your PushPlus User Token. |
+| `TARGET_URLS` | `["https://..."]` | JSON list of URLs to monitor. **(Moved to Secrets for privacy)** |
 
 ### 4. Configure GitHub Variables (Optional)
 Go to **Settings** -> **Secrets and variables** -> **Actions** -> **Repository variables**.
@@ -34,14 +35,12 @@ You can customize the behavior by adding these variables. If not set, defaults w
 
 | Variable Name | Default Value | Description |
 | :--- | :--- | :--- |
-| `TARGET_URLS` | *(Default SPCA URLs)* | JSON list of URLs to monitor. Example: `["https://site1...", "https://site2..."]` |
 | `START_HOUR` | `8` | Start hour of the day (0-23) in NZT. |
 | `END_HOUR` | `20` | End hour of the day (0-23) in NZT. |
 | `OPERATING_DAYS`| `0,1,2,3,4,5,6` | Days of the week to run (0=Monday, 6=Sunday). Example: `0,1,2,3,4` for weekdays only. |
 | `DETECTION_RULES` | *(Default Rule)* | Natural language rules for LLM filtering. Example: `Include ONLY items where the button text contains 'Ask' or 'Available'.` |
 | `DEBUG_LLM` | `false` | Set to `true` to print the full LLM prompt and response to the logs for debugging. |
-| `MASK_URLS` | `false` | Set to `true` to hide URLs in the logs (e.g., "Checking Target [1]..."). |
-| `GEMINI_MODEL` | `gemini-3-pro-preview` | The primary Gemini model to use. Falls back to `gemini-2.5-pro` if it fails. |
+| `GEMINI_MODEL` | `gemini-3-pro-preview` | The primary Gemini model to use. Falls back to `gemini-1.5-pro` if it fails. |
 
 ## Manual Testing
 

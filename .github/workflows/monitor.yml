@@ -38,14 +38,13 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          TARGET_URLS: ${{ secrets.TARGET_URLS }}
           # Config Variables (Repository Variables)
-          TARGET_URLS: ${{ vars.TARGET_URLS }}
           START_HOUR: ${{ vars.START_HOUR }}
           END_HOUR: ${{ vars.END_HOUR }}
           OPERATING_DAYS: ${{ vars.OPERATING_DAYS }}
           DETECTION_RULES: ${{ vars.DETECTION_RULES }}
           DEBUG_LLM: ${{ vars.DEBUG_LLM }}
-          MASK_URLS: ${{ vars.MASK_URLS }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
           ARGS=""

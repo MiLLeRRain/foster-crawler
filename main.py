@@ -49,7 +49,6 @@ DETECTION_RULES = os.environ.get("DETECTION_RULES", "Include ONLY items where th
 
 # Debug Config
 DEBUG_LLM = os.environ.get("DEBUG_LLM", "false").lower() == "true"
-MASK_URLS = os.environ.get("MASK_URLS", "false").lower() == "true"
 
 # Model Config
 PRIMARY_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
@@ -208,8 +207,10 @@ def main():
         context = browser.new_context(viewport={'width': 1920, 'height': 1080})
         
         for i, url in enumerate(TARGET_URLS):
-            log_url = f"Target [{i+1}]" if MASK_URLS else url
-            print(f"Checking {log_url}...")
+            # Mask URL in logs if it's a secret (GitHub Actions masks secrets automatically, 
+            # but we also use a generic label here for cleaner logs)
+            log_label = f"Target [{i+1}]"
+            print(f"Checking {log_label}...")
             page = context.new_page()
             try:
                 page.goto(url)
@@ -247,7 +248,7 @@ def main():
                         print(f"Skipping (Known or Invalid): {raw_id}")
                         
             except Exception as e:
-                print(f"Error processing {log_url}: {e}")
+                print(f"Error processing {log_label}: {e}")
             finally:
                 page.close()
         
