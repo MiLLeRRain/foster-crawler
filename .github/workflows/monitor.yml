@@ -13,6 +13,10 @@ on:
         description: 'Test PushPlus notification'
         type: boolean
         default: false
+      cleanup:
+        description: 'Clean up history (keep last 10)'
+        type: boolean
+        default: false
 
 jobs:
   monitor:
@@ -50,6 +54,7 @@ jobs:
           ARGS=""
           if [ "${{ inputs.force }}" == "true" ]; then ARGS="$ARGS --force"; fi
           if [ "${{ inputs.test_push }}" == "true" ]; then ARGS="$ARGS --test-push"; fi
+          if [ "${{ inputs.cleanup }}" == "true" ]; then ARGS="$ARGS --cleanup"; fi
           python main.py $ARGS
 
       - name: Commit history changes
