@@ -82,6 +82,23 @@ def save_history(new_key):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(f"{new_key}\n")
 
+def cleanup_history():
+    """Keep only the last 10 entries in history file."""
+    if not os.path.exists(HISTORY_FILE):
+        print("No history file found.")
+        return
+        
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        lines = [line.strip() for line in f if line.strip()]
+        
+    if len(lines) > 10:
+        new_lines = lines[-10:]
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines) + "\n")
+        print(f"Cleanup complete. Reduced history from {len(lines)} to {len(new_lines)} entries.")
+    else:
+        print(f"History size ({len(lines)}) is within limit. No cleanup needed.")
+
 def normalize_key(id_text):
     """
     Generate a stable unique key.
@@ -178,7 +195,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Ignore time window restrictions")
     parser.add_argument("--test-push", action="store_true", help="Send a test notification and exit")
+    parser.add_argument("--cleanup", action="store_true", help="Keep only the last 10 entries in history")
     args = parser.parse_args()
+
+    if args.cleanup:
+        cleanup_history()
+        return
 
     if args.test_push:
         print("Sending test notification...")
@@ -188,6 +210,13 @@ def main():
     if not args.force:
         check_operating_hours()
     
+    # Auto-cleanup: If it's Monday (weekday 0), clean up history before starting
+    # We do this only once a week to avoid constant file churn
+    tz = pytz.timezone(TIMEZONE)
+    if datetime.now(tz).weekday() == 0:
+        print("It's Monday. Performing weekly history cleanup...")
+        cleanup_history()
+
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY not set.")
