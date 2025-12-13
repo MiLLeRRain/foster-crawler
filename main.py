@@ -242,7 +242,7 @@ def main():
                         # We'll send immediately to be safe.
                         send_notification(
                             title="New Foster Opportunity!",
-                            content=f"Found: {raw_id}<br>Status: {status}<br>Link: {url}"
+                            content=f"Found: {raw_id}<br>Status: {status}<br><a href='{url}'>👉 Click here to view page</a>"
                         )
                     else:
                         print(f"Skipping (Known or Invalid): {raw_id}")
